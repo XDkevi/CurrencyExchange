@@ -17,7 +17,7 @@ outputCurrency = 'AED'
 
 JSON_FILE = "exchangeRates.json"
 
-def load_exchange_rates():
+def loadExchangeRates():
     
     if os.path.exists(JSON_FILE):
         with open(JSON_FILE, "r") as file:
@@ -30,8 +30,8 @@ def load_exchange_rates():
     response = requests.get(url)
 
     if response.status_code == 200:
-        exchange_data = response.json()
-        rates = exchange_data["rates"]
+        exchangeData = response.json()
+        rates = exchangeData["rates"]
         
         # Speichern in JSON-Datei
         data_to_save = {
@@ -46,7 +46,7 @@ def load_exchange_rates():
         print("Fehler beim Abrufen der Daten:", response.status_code)
         return None
 
-exchangeRate = load_exchange_rates()
+exchangeRate = loadExchangeRates()
 label = QLabel()
 
 def convert(label: QLabel):
