@@ -4,21 +4,49 @@ import sys
 import requests
 import os
 from dotenv import load_dotenv
+from datetime import datetime
+import json
+
+
 load_dotenv()
-api_key = os.getenv("API_KEY")
+API_KEY = os.getenv("API_KEY")
 
 app = QApplication([])
 inputCurrency = 'AED'
 outputCurrency = 'AED'
 
-url = f"https://openexchangerates.org/api/latest.json?app_id={api_key}"
-response = requests.get(url)
+JSON_FILE = "exchangeRates.json"
 
-if response.status_code == 200:
-    exchangeRate = response.json()
-else:
-    print("Fehler beim Abrufen der Daten:", response.status_code)
+def load_exchange_rates():
+    
+    if os.path.exists(JSON_FILE):
+        with open(JSON_FILE, "r") as file:
+            data = json.load(file)
+        
+        if data.get("date") == datetime.today().strftime("%Y-%m-%d"):
+            return data["rates"]
 
+    url = f"https://openexchangerates.org/api/latest.json?app_id={API_KEY}"
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        exchange_data = response.json()
+        rates = exchange_data["rates"]
+        
+        # Speichern in JSON-Datei
+        data_to_save = {
+            "date": datetime.today().strftime("%Y-%m-%d"),
+            "rates": rates
+        }
+        with open(JSON_FILE, "w") as file:
+            json.dump(data_to_save, file, indent=4)
+        
+        return rates
+    else:
+        print("Fehler beim Abrufen der Daten:", response.status_code)
+        return None
+
+exchangeRate = load_exchange_rates()
 label = QLabel()
 
 def convert(label: QLabel):
@@ -26,37 +54,32 @@ def convert(label: QLabel):
         try:
             number = float(input.text())
         except ValueError:
-            number = -1
-        print(number)
-        print(exchangeRate['rates'][inputCurrency])
-        print(exchangeRate['rates'][outputCurrency])
-        print(inputCurrency)
-        print(outputCurrency)
-        number = number / exchangeRate['rates'][inputCurrency]
-        print(number)
-        number = number * exchangeRate["rates"][outputCurrency]
-        print(number)
+            number = 0
+        number = number / exchangeRate[inputCurrency]
+        number = number * exchangeRate[outputCurrency]
         # number = number/Wert von Input Currency inputCurrency
         # anschließend number+ Wert von output Currency, um das Endergebnis zu erhalten
         # Muss gemacht werden, da nur base USD möglich ist.
         #number = number*2
         result = str(number)
         if(number > 0):
-            label.setText(result)  # Falls du den Text verwenden willst
+            label.setText(result)
         else:
             label.setText('')
     return inner
 
 def inputCurrencyChanged(stringValue):
     global inputCurrency, label
-    print(stringValue)
     inputCurrency = searchForCode(stringValue)
+    if inputCurrency == None:
+        return
     convert(label)()
 
 def outputCurrencyChanged(stringValue):
     global outputCurrency, label
-    print(stringValue)
     outputCurrency = searchForCode(stringValue)
+    if outputCurrency == None:
+        return
     convert(label)()
 
 def searchForCode(currencyName:str) -> str:
@@ -99,7 +122,9 @@ if responseAllCurrencies.status_code == 200:
 else:
     print("Fehler beim Abrufen der Daten:", responseAllCurrencies.status_code)
 
-for code, name in currencies.items():
+validCurrencies = {code: name for code, name in currencies.items() if code in exchangeRate}
+
+for code, name in validCurrencies.items():
     display_text = f"{name}"
     inputCurrencyChoices.addItem(display_text, code)
     outputCurrencyChoices.addItem(display_text, code)
